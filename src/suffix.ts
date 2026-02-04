@@ -1,4 +1,4 @@
-import { nodeGetNext, nodeInsertOutEdge, nodeReplaceOutEdge, type DGraphNode } from '.'
+import { nodeGetNext, nodeSetOutEdge, type DGraphNode } from '.'
 
 export interface SuffixNode extends DGraphNode {
   id: number
@@ -49,7 +49,7 @@ export class SuffixAutomaton {
     cur.len = this._last.len + 1
     let p: SuffixNode | null = this._last
     while (p && (nodeGetNext(p, char) === undefined)) {
-      nodeInsertOutEdge(p, char, cur)
+      nodeSetOutEdge(p, char, cur)
       p = p.link
     }
     if (!p) {
@@ -63,7 +63,7 @@ export class SuffixAutomaton {
         const clone = this.cloneNode(q)
         clone.len = p.len + 1
         while(p && nodeGetNext(p, char) === q) {
-          nodeReplaceOutEdge(p, char, clone)
+          nodeSetOutEdge(p, char, clone)
           p = p.link
         }
         q.link = (cur.link = clone)
@@ -73,17 +73,15 @@ export class SuffixAutomaton {
   }
 
   getFinals() {
-    const map = new Map<number, boolean>()
+    const map = new Set<number>()
     let node = this._last
     while (node.link) {
-      map.set(node.id, true)
+      map.add(node.id)
       node = node.link
     }
     return map
   }
 }
-
-
 
 export function walkSAM<V>(func: (node: SuffixNode, value: V, queue: [SuffixNode, V][])=>[SuffixNode, V][], initialValue: [SuffixNode, V]) {
   let queue: [SuffixNode, V][] = [initialValue]

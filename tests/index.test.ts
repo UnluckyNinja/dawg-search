@@ -17,9 +17,9 @@ test('suffix automaton', ()=>{
     return queue
   }, [sam.root, ''])
   expect(finals).toMatchInlineSnapshot(`
-    Map {
-      6 => true,
-      7 => true,
+    Set {
+      6,
+      7,
     }
   `)
   expect(suffixes).toMatchInlineSnapshot(`
