@@ -7,33 +7,28 @@
 - If multiple words overlaps, words shown first or longer take precedence,
 
 ## How it works
-1. DAFSA Phase 
+1. DAFSA Phase  
 First you need to prepare a dictionary of words.
 It will be processed into a trie, which merged not only the prefixes but also the suffixes.  
 Historically it's called *Deterministic Acyclic Finite State Automaton* (DAFSA).
 (A regular trie will work, but considering many words have common suffix, it could save a lot of memory).
 
-2. Suffix Phase
+2. Suffix Phase  
 Secondly, the text to be searched in is processed into a suffix automaton.
 
-3. Traversing Phase
+3. Traversing Phase  
 Then, from root node of the suffix automaton, it will traverse every transition,
 which implicitly will traverse all substrings.  
-There are mainly two issues
-  1. how to solve word overlaping
-  2. how to correctly report a match
-
-
-
-### Suffix automaton tranversing
-Now, considering a pointer (general meaning), moving from root node following transitions, both in suffix automaton and DAFSA.
-For each leaving transitions, check the string represented in DAFSA 
-- if there is a match, note down and continue
-- if not matched, check if it has already matched a full word, carry it to the end. Otherwise, drop.
-(pointer needs to reach terminate state so that it knows where the substring resides, can be cached though)
-
-
-To solve the problem
+A naive implementation will reveal two issues:
+    1. Until the terminal state, the pointer wouldn't know where the matched word starts and ends.
+    2. Matches can overlap with each other.
+    e.g.
+    ```
+    ... underground ...
+        under
+             ground
+        underground
+    ```
 
 ## Room for improvement
 - This lib can only process concrete words, not regex.
