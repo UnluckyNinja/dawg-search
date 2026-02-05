@@ -1,6 +1,7 @@
 import { binarySearch } from './utils'
 
 export * from './suffix'
+export * from './trie'
 
 export interface DGraphNode {
   id: number

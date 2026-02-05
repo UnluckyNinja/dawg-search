@@ -15,7 +15,8 @@ export class TrieAutomaton {
     return this._root
   }
   private _states: TrieNode[] = []
-  get states(): Readonly<typeof this._states>{
+  // get states(): Readonly<typeof this._states>{ // tsdown will lose type on private member
+  get states() {
     return this._states
   }
   private nodePool: TrieNode[] = []
@@ -251,7 +252,7 @@ function compareNode(a: TrieNode, b: TrieNode) {
     }
 
     const nodeA = nodeGetNext(a, charA)!
-    const nodeB = nodeGetNext(a, charA)!
+    const nodeB = nodeGetNext(b, charA)!
 
     if (nodeA !== nodeB) {
       return nodeA.id - nodeB.id
