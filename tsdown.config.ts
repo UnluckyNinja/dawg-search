@@ -1,6 +1,10 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  exports: true,
+  exports: {
+    all: true,
+    devExports: true,
+  },
   // ...config options
+  minify: 'dce-only',
 })

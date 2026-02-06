@@ -1,5 +1,6 @@
-import { nodeGetNext, nodeSetOutEdge, type DGraphNode } from '.'
+import { compareNodeOut, nodeGetNext, type DGraphNode } from './index'
 import SplayTree from 'splaytree'
+import { binarySearch } from './utils'
 
 export interface TrieNode extends DGraphNode {
   id: number
@@ -91,7 +92,7 @@ export class TrieAutomaton {
     const node = this.register.find(child)
     if (node) {
       const found = node.key
-      nodeSetOutEdge(state, char, found)
+      setTransition(state, char, found)
       this.deleteNode(child, false)
       return found
     } else {
@@ -111,7 +112,10 @@ export class TrieAutomaton {
     if (!this._states[id] || this._states[id] !== node) return false
 
     // remove all transitions
-    cutout(node)
+    // cutout(node)
+    for (let i = 0; i < node.out.length; ++i){
+      --node.out[i][1].inDegree
+    }
 
     // remove from register
     if (alsoRegister) {
@@ -148,6 +152,9 @@ export class TrieAutomaton {
    * Then try merging (and retracting for removing)
    */
   private processWord(word: string, remove: boolean) {
+    if (import.meta.env.DEV) {
+      console.debug('[debug:dawg-search] Processing word: ' + word)
+    }
     let lastNode = this._root
     const chain = [lastNode]
     
@@ -156,13 +163,16 @@ export class TrieAutomaton {
     for (; i < word.length; ++i) {
       const char = word.charAt(i)
       const child = nodeGetNext(lastNode, char)
+      if (import.meta.env.DEV) {
+        console.debug(`[debug:dawg-search] - Processing char: `+char)
+      }
       if (child) {
         if (child.inDegree > 1) {
           shouldClone = true
         }
         if (shouldClone) {
           const cloned = this.cloneNode(child)
-          nodeSetOutEdge(lastNode, char, cloned)
+          setTransition(lastNode, char, cloned)
           lastNode = cloned
         } else {
           this.removeFromRegister(child)
@@ -173,7 +183,7 @@ export class TrieAutomaton {
           break
         } else {
           const newNode = this.addNode()
-          nodeSetOutEdge(lastNode, char, newNode)
+          setTransition(lastNode, char, newNode)
           lastNode = newNode
         }
       }
@@ -261,9 +271,33 @@ function compareNode(a: TrieNode, b: TrieNode) {
   return 0
 }
 
-function cutout(node: TrieNode) {
-  // remove all transitions
-  for (let i = 0; i < node.out.length; ++i){
-    --node.out[i][1].inDegree
+export function setTransition<T extends TrieNode>(node: T, char: string, next?: T){
+  const idx = binarySearch(node.out, [char, undefined], compareNodeOut)
+  const foundChar = node.out[idx]?.[0]
+  const foundNext = node.out[idx]?.[1]
+  let replace = false
+  if (foundChar === char) {
+    replace = true
+  }
+
+  if (replace) { // found existing transition
+    if (!next) {
+      node.out.splice(idx, 1)
+    } else {
+      node.out.splice(idx, 1, [char, next])
+    }
+  } else { // not found
+    if (!next) {
+      return
+    } else {
+      node.out.splice(idx, 0, [char, next])
+    }
+  }
+
+  if (foundNext) {
+    --foundNext.inDegree
+  }
+  if (next) {
+    ++next.inDegree
   }
 }
