@@ -3,4 +3,14 @@ import './style.css'
 import App from './App.vue'
 import 'virtual:uno.css'
 
-createApp(App).mount('#app')
+import { createRouter, createWebHistory } from 'vue-router'
+import { routes } from 'vue-router/auto-routes'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
+
+createApp(App)
+  .use(router)
+  .mount('#app')

@@ -99,7 +99,7 @@ onMounted(() => {
     
     <!-- Handle expandable nodes (objects and arrays) -->
     <template v-if="isExpandable">
-      <span class="json-toggle" @click="toggleExpansion">
+      <span class="json-toggle text-blue-500" @click="toggleExpansion">
         {{ isExpanded ? '▼' : '►' }}
       </span>
       

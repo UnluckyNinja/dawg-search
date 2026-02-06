@@ -19,7 +19,10 @@ export class SuffixAutomaton {
   get last(){
     return this._last
   }
-  private states: SuffixNode[] = []
+  private _states: SuffixNode[] = []
+  get states() {
+    return this._states
+  }
   constructor(text: string) {
     this._root = this.addNode()
     this._last = this._root
