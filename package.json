@@ -1,17 +1,17 @@
 {
   "name": "dawg-search",
   "type": "module",
-  "version": "0.0.0",
-  "description": "search multiple word in text, by leveraging both a DAWG and DAFSA",
-  "author": "Author Name <author.name@mail.com>",
+  "version": "1.0.0",
+  "description": "search multiple word in text, by leveraging two types of automaton",
+  "author": "UnluckyNinja <unluckyninja4ever@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/author/library#readme",
+  "homepage": "https://github.com/UnluckyNinja/dawg-search#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/author/library.git"
+    "url": "git+https://github.com/UnluckyNinja/dawg-search.git"
   },
   "bugs": {
-    "url": "https://github.com/author/library/issues"
+    "url": "https://github.com/UnluckyNinja/dawg-search/issues"
   },
   "exports": {
     ".": "./src/index.ts",
@@ -27,6 +27,7 @@
     "dev:playground": "pnpm -r --include-workspace-root --parallel run dev",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
+    "release": "bumpp",
     "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
@@ -37,7 +38,6 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "fflate": "^0.8.2",
     "splaytree": "^3.2.3"
   },
   "pnpm": {
