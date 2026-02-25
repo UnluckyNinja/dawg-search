@@ -1,4 +1,4 @@
-import { nodeGetNext, nodeSetOutEdge, type DGraphNode } from '.'
+import { nodeGetNext, nodeSetOutEdge, type DGraphNode } from './utils'
 
 export interface SuffixNode extends DGraphNode {
   id: number
@@ -86,10 +86,3 @@ export class SuffixAutomaton {
   }
 }
 
-export function walkSAM<V>(func: (node: SuffixNode, value: V, queue: [SuffixNode, V][])=>[SuffixNode, V][], initialValue: [SuffixNode, V]) {
-  let queue: [SuffixNode, V][] = [initialValue]
-  while (queue.length > 0) {
-    const [node, value] = queue.shift()!
-    queue = func(node, value, queue)
-  }
-}

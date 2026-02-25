@@ -1,12 +1,10 @@
-import { compareNodeOut, nodeGetNext, type DGraphNode } from './index'
+import { compareNodeOut, nodeGetNext, type DGraphNode } from './utils'
 import SplayTree from 'splaytree'
 import { binarySearch } from './utils'
 
 export interface TrieNode extends DGraphNode {
-  id: number
   final: boolean
   inDegree: number
-  out: [string, this][]
 }
 
 export class TrieAutomaton {
@@ -92,7 +90,7 @@ export class TrieAutomaton {
     const node = this.register.find(child)
     if (node) {
       const found = node.key
-      setTransition(state, char, found)
+      setTrieTransition(state, char, found)
       this.deleteNode(child, false)
       return found
     } else {
@@ -126,8 +124,9 @@ export class TrieAutomaton {
     this.nodePool.push(node)
     // swap current position node and last node
     const lastID = this.states.length - 1
-    this._states[id] = this._states[lastID]
-    this._states[id].id = id
+    const swapnode = this._states[lastID]
+    this._states[id] = swapnode
+    swapnode.id = id
     this._states.length = lastID
     return true
   }
@@ -152,9 +151,9 @@ export class TrieAutomaton {
    * Then try merging (and retracting for removing)
    */
   private processWord(word: string, remove: boolean) {
-    if (import.meta.env.DEV) {
-      console.debug('[debug:dawg-search] Processing word: ' + word)
-    }
+    // if (import.meta.env.DEV) {
+    //   console.debug('[debug:dawg-search] Processing word: ' + word)
+    // }
     let lastNode = this._root
     const chain = [lastNode]
     
@@ -163,16 +162,16 @@ export class TrieAutomaton {
     for (; i < word.length; ++i) {
       const char = word.charAt(i)
       const child = nodeGetNext(lastNode, char)
-      if (import.meta.env.DEV) {
-        console.debug(`[debug:dawg-search] - Processing char: `+char)
-      }
+      // if (import.meta.env.DEV) {
+      //   console.debug(`[debug:dawg-search] - Processing char: `+char)
+      // }
       if (child) {
         if (child.inDegree > 1) {
           shouldClone = true
         }
         if (shouldClone) {
           const cloned = this.cloneNode(child)
-          setTransition(lastNode, char, cloned)
+          setTrieTransition(lastNode, char, cloned)
           lastNode = cloned
         } else {
           this.removeFromRegister(child)
@@ -183,7 +182,7 @@ export class TrieAutomaton {
           break
         } else {
           const newNode = this.addNode()
-          setTransition(lastNode, char, newNode)
+          setTrieTransition(lastNode, char, newNode)
           lastNode = newNode
         }
       }
@@ -212,25 +211,7 @@ export class TrieAutomaton {
   public removeWord(word: string) {
     this.processWord(word, true)
   }
-}
 
-function match(prefix: string, start: TrieNode) {
-  let lastNode = start
-  for (let i = 0; i < prefix.length; ++i) {
-    const char = prefix.charAt(i)
-    const next = nodeGetNext(lastNode, char)
-    if (!next) {
-      return {
-        matched: prefix.slice(0, i),
-        node: lastNode,
-      }
-    }
-    lastNode = next
-  }
-  return {
-    matched: prefix,
-    node: lastNode,
-  }
 }
 
 /**
@@ -241,61 +222,53 @@ function match(prefix: string, start: TrieNode) {
  * - if all above are equal, the two nodes are considered equal. (so they can be merged)
  */
 function compareNode(a: TrieNode, b: TrieNode) {
-  if (a.final !== b.final) {
-    if (b.final) {
-      return -1
-    } else {
-      return 1
-    }
-  }
-  let outDiff = a.out.length - b.out.length
-  if (outDiff !== 0) {
-    return outDiff
-  }
+  if (a === b) return 0
+
+  let diff = (a.final ? 1 : 0) - (b.final ? 1 : 0)
+  if (diff !== 0) return diff
+
+  diff = a.out.length - b.out.length
+  if (diff !== 0) return diff
 
   for (let i = 0; i < a.out.length; ++i) {
-    const charA = a.out[i][0]
-    const charB = b.out[i][0]
-    const kDiff = charA.localeCompare(charB)
-    if (kDiff !== 0) {
-      return kDiff
-    }
+    const [charA, nodeA] = a.out[i]
+    const [charB, nodeB] = b.out[i]
 
-    const nodeA = nodeGetNext(a, charA)!
-    const nodeB = nodeGetNext(b, charA)!
+    diff = charA.localeCompare(charB)
+    if (diff !== 0) return diff
 
-    if (nodeA !== nodeB) {
-      return nodeA.id - nodeB.id
-    }
+    // most case they should either point to the same node,
+    // or obviously different so no need to recur a second time.
+    return compareNode(nodeA, nodeB)
   }
   return 0
 }
 
-export function setTransition<T extends TrieNode>(node: T, char: string, next?: T){
+function setTrieTransition(node: TrieNode, char: string, next?: TrieNode){
   const idx = binarySearch(node.out, [char, undefined], compareNodeOut)
-  const foundChar = node.out[idx]?.[0]
-  const foundNext = node.out[idx]?.[1]
-  let replace = false
-  if (foundChar === char) {
-    replace = true
+
+  const found = node.out[idx]?.[0] === char
+  const oldNext = found ? node.out[idx]?.[1] as TrieNode : undefined
+
+  if (oldNext === next) {
+    return
   }
 
-  if (replace) { // found existing transition
-    if (!next) {
-      node.out.splice(idx, 1)
-    } else {
+  if (found) {
+    if (next) {
+      // Replace existing transition
       node.out.splice(idx, 1, [char, next])
-    }
-  } else { // not found
-    if (!next) {
-      return
     } else {
-      node.out.splice(idx, 0, [char, next])
+      // Remove existing transition
+      node.out.splice(idx, 1)
     }
+  } else if (next) {
+    // Add new transition
+    node.out.splice(idx, 0, [char, next])
   }
 
-  if (foundNext) {
-    --foundNext.inDegree
+  if (oldNext) {
+    --oldNext.inDegree
   }
   if (next) {
     ++next.inDegree
