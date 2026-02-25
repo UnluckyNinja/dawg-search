@@ -6,6 +6,9 @@ import { RouterLink } from 'vue-router';
 <template>
   <div class="flex justify-center divide-x-2 *:px-2 mb-8 text-xl">
     <div>
+      <RouterLink to="/">Demo</RouterLink>
+    </div>
+    <div>
       <RouterLink to="/trie-viewer">Test Trie (DAFSA)</RouterLink>
     </div>
     <div>
