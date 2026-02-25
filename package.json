@@ -49,6 +49,7 @@
     "exports": {
       ".": "./dist/index.mjs",
       "./*": "./*"
-    }
+    },
+    "registry": "https://registry.npmjs.org"
   }
 }
