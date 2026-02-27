@@ -1,7 +1,7 @@
 {
   "name": "dawg-search",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "search multiple word in text, by leveraging two types of automaton",
   "author": "UnluckyNinja <unluckyninja4ever@gmail.com>",
   "license": "MIT",
