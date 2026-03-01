@@ -18,6 +18,30 @@ export function prepareSearch(words: string[]) {
   }
   return {
     findWords: _findWords,
+    addWord: trie.addWord,
+    removeWord: trie.removeWord,
+    refill: trie.refill,
+  }
+}
+
+export async function prepareSearchAsync(words: string[]) {
+  const trie = new TrieAutomaton()
+  let timeStart = performance.now()
+  for (const word of words) {
+    if (performance.now() - timeStart > 10) {
+      await new Promise((resolve)=>setTimeout(resolve, 0))
+      timeStart = performance.now()
+    }
+    trie.addWord(word)
+  }
+  function _findWords(text: string){
+    return findWords(text, trie)
+  }
+  return {
+    findWords: _findWords,
+    addWord: trie.addWord,
+    removeWord: trie.removeWord,
+    refill: trie.refill,
   }
 }
 
