@@ -85,4 +85,59 @@ describe('SkipList', () => {
     sl.forEach(() => count++)
     expect(count).toBe(0)
   })
+
+  it('should find the first matching element using a custom comparator', () => {
+    const sl = new SkipList<number, string>(compareNumber)
+    sl.insert(10, 'ten')
+    sl.insert(20, 'twenty-1')
+    sl.insert(20, 'twenty-2')
+    sl.insert(21, 'twenty-one')
+    sl.insert(22, 'twenty-two')
+    sl.insert(30, 'thirty')
+
+    // Find the first key that is >= 20
+    const it = sl.findFirst((k) => {
+      if (k < 20) return -1
+      if (k >= 20 && k < 30) return 0
+      return 1
+    })
+
+    expect(it).toBeDefined()
+    expect(it?.key).toBe(20)
+    expect(it?.value).toBe('twenty-2') // The last one inserted for key 20
+
+    // Test iteration from there
+    const next = it?.next()
+    expect(next?.key).toBe(21)
+    expect(next?.value).toBe('twenty-one')
+    
+    const next2 = next?.next()
+    expect(next2?.key).toBe(22)
+  })
+
+  it('should return the leftmost item when multiple items satisfy the condition', () => {
+    const sl = new SkipList<string, number>((a, b) => a.localeCompare(b))
+    sl.insert('apple', 1)
+    sl.insert('apply', 2)
+    sl.insert('ball', 3)
+    sl.insert('bat', 4)
+    sl.insert('cat', 5)
+
+    // Find first word starting with 'ba'
+    const it = sl.findFirst((k) => {
+      if (k < 'ba') return -1
+      if (k.startsWith('ba')) return 0
+      return 1
+    })
+
+    expect(it?.key).toBe('ball')
+    expect(it?.value).toBe(3)
+    
+    const next = it?.next()
+    expect(next?.key).toBe('bat')
+    expect(next?.value).toBe(4)
+    
+    const next2 = next?.next()
+    expect(next2?.key).toBe('cat')
+  })
 })

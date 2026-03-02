@@ -8,6 +8,29 @@ interface SkipNode<K, V> {
 }
 
 /**
+ * SkipListIterator allows traversing the skip list starting from a specific node.
+ */
+export interface SkipListIterator<K, V> {
+  readonly key: K
+  readonly value: V
+  next(): SkipListIterator<K, V> | null
+}
+
+class SkipListIteratorImpl<K, V> implements SkipListIterator<K, V> {
+  constructor(private node: SkipNode<K, V>) {}
+  get key(): K { return this.node.key as K }
+  get value(): V { return this.node.value as V }
+  next(): SkipListIterator<K, V> | null {
+    const n = this.node.next[0]
+    if (n) {
+      this.node = n
+      return this
+    }
+    return null
+  }
+}
+
+/**
  * SkipList implementation in TypeScript.
  * Provides O(log n) average time complexity for search, insert, and delete.
  */
@@ -19,7 +42,7 @@ export class SkipList<K, V> {
 
   /**
    * @param compare A function to compare two keys. Returns < 0 if a < b, 0 if a == b, > 0 if a > b.
-   * @param maxLevel Maximum height of the skip list. Defaults to 16.
+   * @param maxLevel Maximum height of the skip list. Defaults to 32.
    * @param p Probability for level promotion. Defaults to 0.25.
    */
   constructor(
@@ -32,6 +55,29 @@ export class SkipList<K, V> {
     this.currentLevel = 0
     this.head = { key: null, value: null, next: new Array(maxLevel).fill(null) }
   }
+
+  /**
+   * Finds the first item that matches the custom comparison function.
+   * The compare function should return:
+   *   < 0 if the node's key is before the target range
+   *   0   if the node's key is within the target range
+   *   > 0 if the node's key is after the target range
+   * Returns an iterator starting at the leftmost matching item, or undefined if no match is found.
+   */
+  findFirst(searchCompare: (key: K) => number): SkipListIterator<K, V> | undefined {
+    let curr = this.head
+    for (let i = this.currentLevel - 1; i >= 0; i--) {
+      while (curr.next[i] && searchCompare(curr.next[i]!.key as K) < 0) {
+        curr = curr.next[i]!
+      }
+    }
+    const target = curr.next[0]
+    if (target && target.key !== null && searchCompare(target.key as K) === 0) {
+      return new SkipListIteratorImpl(target)
+    }
+    return undefined
+  }
+
 
   private randomLevel(): number {
     let lvl = 1
