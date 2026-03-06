@@ -37,9 +37,6 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
-  "dependencies": {
-    "splaytree": "^3.2.3"
-  },
   "pnpm": {
     "overrides": {
       "vite": "npm:rolldown-vite@^7.3.1"
