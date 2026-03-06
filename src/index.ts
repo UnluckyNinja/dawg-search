@@ -1,9 +1,8 @@
 import { SuffixAutomaton } from './suffix'
-import { TrieAutomaton } from './trieWithMap'
-import { nodeGetNext } from './utils'
+import { TrieAutomaton } from './trie'
 
 export * from './suffix'
-export * from './trieWithMap'
+export * from './trie'
 export * from './utils'
 
 interface Result {
@@ -18,9 +17,9 @@ export function prepareSearch(words: string[]) {
   }
   return {
     findWords: _findWords,
-    addWord: trie.addWord,
-    // removeWord: trie.removeWord,
-    refill: trie.refill,
+    addWord: trie.addWord.bind(trie),
+    removeWord: trie.removeWord.bind(trie),
+    refill: trie.refill.bind(trie),
   }
 }
 
@@ -39,9 +38,9 @@ export async function prepareSearchAsync(words: string[]) {
   }
   return {
     findWords: _findWords,
-    addWord: trie.addWord,
-    // removeWord: trie.removeWord,
-    refill: trie.refill,
+    addWord: trie.addWord.bind(trie),
+    removeWord: trie.removeWord.bind(trie),
+    refill: trie.refill.bind(trie),
   }
 }
 

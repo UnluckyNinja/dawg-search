@@ -1,5 +1,3 @@
-import { SkipList, type SkipListIterator } from './skiplist'
-
 export class TrieAutomaton {
 
   private _root!: number
@@ -23,29 +21,20 @@ export class TrieAutomaton {
    */
   private internalSize!: number
   /**
-   * uses internal ID
-   */
-  // private finals!: boolean[]
-  /**
    * For branching when add/remove word
    * uses internal ID
    */
   private indegrees!: number[]
   /**
-   * For comparing nodes
-   * uses internal ID
-   */
-  private outdegrees!: number[]
-  /**
-   * uses stable ID.
-   * generics order: from, char of edge, to
+   * uses internal ID.
+   * [from].<char of edge, to>
    */ 
-  private edges!: SkipList<[number, string], number>
+  private edgeMaps!: (Map<string, number> | null)[]
   /**
-   * uses stable ID.
-   * generics order: to, from, edgeCount 
+   * uses internal ID.
+   * [to].<from, edgeCount> 
    */
-  private backLinks!: SkipList<[number, number], number>
+  private backLinks!: (Map<number, number> | null)[]
 
   private processedWords = new Set<string>()
 
@@ -61,80 +50,13 @@ export class TrieAutomaton {
     this.backIndex = [0, 1]
     // this.finals = [false, true]
     this.indegrees = [0, 0]
-    this.edges = new SkipList((a,b)=>{
-      let fromDiff = a[0] - b[0]
-      if (fromDiff !== 0){
-        return fromDiff
-      }
-      return a[1].localeCompare(b[1])
-    })
-    this.backLinks = new SkipList((a,b)=>{
-      return (a[0] - b[0]) !== 0 ? a[0] - b[0] : a[1] - b[1]
-    })
+    this.edgeMaps = [null, null]
+    this.backLinks = [null, null]
   }
-
-  // getState(i: number) {
-  //   if (i >= this.internalSize) {
-  //     throw new Error('Index is out of bounds.')
-  //   }
-  //   return {
-  //     id: i,
-  //     final: this.finals[i],
-  //     inDegree: this.indegrees[i],
-  //   }
-  // }
 
   /*
    * MARK: Internal funcs
    */
-
-  private compareEdge(a: string, b: string) {
-    return a.localeCompare(b)
-  }
-
-  /**
-   * Nodes are compared by the following precedences:
-   * - not final node <-> is final node
-   * - for each edge, the connected node order, or its character order
-   * - if all above are equal, the two nodes are considered equal. (so they can be merged)
-   */
-  compareNode(a: number, b: number) {
-    if (a === b) return 0
-
-    // let finalDiff = (this.finals[a] ? 1 : 0) - (this.finals[b] ? 1 : 0)
-    // if (finalDiff !== 0) return finalDiff
-
-    let edgeItorA = this.edges.findFirst((key)=>{
-      return key[0] - a
-    })
-    let edgeItorB = this.edges.findFirst((key)=>{
-      return key[0] - b
-    })
-
-    while (edgeItorA?.key[0] === a && edgeItorB?.key[0] === b) {
-      const toA = edgeItorA.value
-      const toB = edgeItorB.value
-      const toDiff = toA - toB
-      if (toDiff !== 0) {
-        return toDiff
-      }
-      const charA = edgeItorA.key[1]
-      const charB = edgeItorB.key[1]
-      const charDiff = this.compareEdge(charA, charB)
-      if (charDiff !== 0) {
-        return charDiff
-      }
-      edgeItorA = edgeItorA.next()
-      edgeItorB = edgeItorB.next()
-    }
-    if (edgeItorA?.key[0] === a) {
-      return 1
-    } else if (edgeItorB?.key[0] === b) {
-      return -1
-    }
-
-    return 0
-  }
 
   private stableToInternal(stableID: number) {
     return this.indirectIndex[stableID]
@@ -142,184 +64,200 @@ export class TrieAutomaton {
   private internalToStable(internalID: number) {
     return this.backIndex[internalID]
   }
-  // private getFinal(stableID: number) {
-  //   return this.finals[this.stableToInternal(stableID)]
-  // }
-  // private setFinal(stableID: number, value: boolean) {
-  //   this.finals[this.stableToInternal(stableID)] = value
-  // }
   public isFinal(stableID: number) {
     return this.getTransition(stableID, '') === this._end
   }
   private getIndegree(stableID: number) {
-    if (this.indegrees[this.stableToInternal(stableID)] === undefined) debugger
     return this.indegrees[this.stableToInternal(stableID)]
   }
   private setIndegree(stableID: number, value: number) {
-    if (this.indegrees[this.stableToInternal(stableID)] === undefined) debugger
     this.indegrees[this.stableToInternal(stableID)] = value
   }
   private increaseIndegree(stableID: number, amount = 1) {
-    if (this.indegrees[this.stableToInternal(stableID)] === undefined) debugger
     this.indegrees[this.stableToInternal(stableID)] += amount
   }
   private decreaseIndegree(stableID: number, amount = 1) {
-    if (this.indegrees[this.stableToInternal(stableID)] === undefined) debugger
     this.indegrees[this.stableToInternal(stableID)] -= amount
   }
-  private getBackLink(edgeToStableID: number, edgeFromStableID: number): SkipListIterator<[number, number], number> | undefined
-  private getBackLink(edgeToStableID: number, edgeFromStableID: number, createNew: true): SkipListIterator<[number, number], number>
-  private getBackLink(edgeToStableID: number, edgeFromStableID: number, createNew = false) {
-    let backItor = this.backLinks.findExact([edgeToStableID, edgeFromStableID])
-    if (!backItor && createNew) {
-      backItor = this.backLinks.insert([edgeToStableID, edgeFromStableID], 0)
+
+  private getEdgeMap(stableID: number) {
+    const internalID = this.stableToInternal(stableID)
+    let edgeMap = this.edgeMaps[internalID]
+    if (!edgeMap) {
+      edgeMap = new Map()
+      this.edgeMaps[internalID] = edgeMap
     }
-    return backItor
+    return edgeMap
   }
+  // private addEdge(stableID: number, char: string, targetStableID: number) {
+  //   const edgeMap = this.getEdgeMap(stableID)
+  //   edgeMap.set(char, targetStableID)
+  // }
+
+  // private deleteEdge(stableID: number, char: string) {
+  //   const edgeMap = this.getEdgeMap(stableID)
+  //   if (edgeMap.size <= 0) {
+  //     throw new Error(`deleteEdge called on empty edgeMap for id ${stableID}, char ${char}`)
+  //   }
+  //   edgeMap.delete(char)
+  // }
+  private getBackLinkMap(edgeToStableID: number) {
+    const internalID = this.stableToInternal(edgeToStableID)
+    let backlinkMap = this.backLinks[internalID]
+    if (!backlinkMap) {
+      backlinkMap = new Map()
+      this.backLinks[internalID] = backlinkMap
+    }
+    return backlinkMap
+  }
+  // private setBackLink(edgeToStableID: number, edgeFromStableID: number, value: number) {
+  //   const backlinkMap = this.getBackLinkMap(edgeToStableID)
+  //   if (value < 0) {
+  //     throw new Error(`Trying to set backlink to ${edgeToStableID} from ${edgeFromStableID},`
+  //       + ` but value is under zero : ${value}.`)
+  //   }
+  //   backlinkMap.set(edgeFromStableID, value)
+  // }
   private addBackLink(edgeToStableID: number, edgeFromStableID: number, amount = 1) {
-    const backItor = this.backLinks.findExact([edgeToStableID, edgeFromStableID])
-    if (backItor) {
-      backItor.value += amount
+    const backlinkMap = this.getBackLinkMap(edgeToStableID)
+    const value = backlinkMap.get(edgeFromStableID)
+    if (!value) {
+      backlinkMap.set(edgeFromStableID, amount)
     } else {
-      this.backLinks.insert([edgeToStableID, edgeFromStableID], amount)
+      backlinkMap.set(edgeFromStableID, value+amount)
     }
   }
-  /**
-   * if amount < 0, delete backlink
-   */
-  private removeBackLink(edgeToStableID: number, edgeFromStableID: number, amount = 1): boolean {
-    const backItor = this.backLinks.findExact([edgeToStableID, edgeFromStableID])
-    if (!backItor) {
-      return false
+  private removeBackLink(edgeToStableID: number, edgeFromStableID: number, amount = 1) {
+    const backlinkMap = this.getBackLinkMap(edgeToStableID)
+    const value = backlinkMap.get(edgeFromStableID)
+    if (!value || value - amount < 0) {
+      throw new Error(`Trying to remove backlink to ${edgeToStableID} from ${edgeFromStableID} by ${amount},`
+        + ` but old value is ${value}.`)
     }
-    if (amount > backItor.value) {
-      throw new Error(`Trying to remove back link `
-        + `[${edgeToStableID}, ${edgeFromStableID}] to negative `
-        + `(was ${backItor.value}, trying to remove ${amount})`)
+    if (value-amount === 0) {
+      backlinkMap.delete(edgeFromStableID)
+    } else {
+      backlinkMap.set(edgeFromStableID, value-amount)
     }
-    if (amount < 0) {
-      this.backLinks.delete([edgeToStableID, edgeFromStableID])
-      return true
-    }
-    backItor.value -= amount
-    if (backItor.value === 0) {
-      this.backLinks.delete([edgeToStableID, edgeFromStableID])
-    }
-    return true
+  }
+
+  public hasTransition(stableID: number, char: string) {
+    return this.edgeMaps[this.stableToInternal(stableID)]?.has(char) || false
   }
   public getTransition(stableID: number, char: string) {
-    return this.edges.search([stableID, char])
+    return this.edgeMaps[this.stableToInternal(stableID)]?.get(char)
   }
-  /**
-   * each invocation to this will result in mutilple calls of at least O(logN) cost,
-   * special case should be specialized to increase performance
-   */
+
   private setTransition(stableID: number, char: string, targetStableID?: number) {
     // first remove old back link and decrease indegree if any
     // then update edge
     // then add new back link and increase indegree if any
-    const edgeItor = this.edges.findExact([stableID, char])
+    const edgeMap = this.getEdgeMap(stableID)
+    const found = edgeMap.has(char)
     // remove old target related stuff
-    if (edgeItor) {
-      const oldTarget = edgeItor.value
+    if (found) {
+      const oldTarget = edgeMap.get(char)!
       if (oldTarget === targetStableID) return
 
-      const backItor = this.backLinks.findExact([oldTarget, stableID])
-      // itor must be truthy beacause edge exists
-      backItor!.value -= 1
-      if (backItor!.value === 0) {
-        this.backLinks.delete([oldTarget, stableID])
-      }
+      this.removeBackLink(oldTarget, stableID, 1)
       this.decreaseIndegree(oldTarget)
+
     }
     // remove old edge
     if (targetStableID === undefined) {
-      if (edgeItor) {
-        this.edges.delete([stableID, char])
+      if (found) {
+        edgeMap.delete(char)
       }
       return
     }
     // update new edge
-    if (edgeItor) {
-      edgeItor.value = targetStableID
-    } else {
-      this.edges.insert([stableID, char], targetStableID)
-    }
+    edgeMap.set(char, targetStableID)
     // set new target related stuff
     this.increaseIndegree(targetStableID)
-    const backItor = this.backLinks.findExact([targetStableID, stableID])
-    if (backItor) {
-      backItor.value += 1
-    } else {
-      this.backLinks.insert([targetStableID, stableID], 1)
-    }
+    this.addBackLink(targetStableID, stableID)
   }
 
   /*
    * MARK: - Node Processing
    */
 
+  /**
+   * This implementation no need to concern about order
+   */
+  isNodeEqual(a: number, b: number) {
+    if (a === b) return 0
+
+    // let finalDiff = (this.finals[a] ? 1 : 0) - (this.finals[b] ? 1 : 0)
+    // if (finalDiff !== 0) return finalDiff
+
+    const edgeMapA = this.getEdgeMap(a)
+    const edgeMapB = this.getEdgeMap(b)
+
+    if (edgeMapA.size !== edgeMapB.size) {
+      return false
+    }
+    const itorA = edgeMapA.entries()
+    let entryA = itorA.next()
+    while (!entryA.done) {
+      const [charA, otherA] = entryA.value
+      if (!edgeMapB.has(charA)) {
+        return false
+      }
+      if (edgeMapB.get(charA) !== otherA) {
+        return false
+      }
+      entryA = itorA.next()
+    }
+
+    return true
+  }
+
   private addNode(): number {
     let internalID: number = this.internalSize
-    ++this.internalSize
+    this.internalSize += 1
     if (this.internalSize > this.indirectIndex.length) {
       this.indirectIndex.push(internalID)
       this.backIndex.push(internalID)
     }
     // this.finals.push(false)
     this.indegrees.push(0)
+    this.edgeMaps.push(null)
+    this.backLinks.push(null)
+
     return this.backIndex[internalID]
   }
 
   private cloneNode(otherStableID: number): number {
     const clonedStableID = this.addNode()
-    // this.setFinal(clonedStableID, this.getFinal(otherStableID))
-    this.setIndegree(clonedStableID, 0)
 
     // copy out edges
-    const out:[string, number][] = []
-    let edgeItor = this.edges.findFirst((key)=>key[0]-otherStableID)
-    while (edgeItor?.key[0] === otherStableID) {
-      const edge = edgeItor.key[1]
-      const target = edgeItor.value
-      out.push([edge, target])
-      edgeItor = edgeItor.next()
-    }
-    for (const [edge, target] of out) {
-      // @TODO potential performance optimzation
-      // As cloned nodes are completed new,
-      // there is no old edges and backlinks,
-      // and all cloned edges are in the same order and adjacent,
-      // so we can save all search calls.
-      //
-      // In other words, implement batch insert in skiplist
+    const edgeMap = this.getEdgeMap(otherStableID)
+    for (const [edge, target] of edgeMap.entries()) {
       this.setTransition(clonedStableID, edge, target)
     }
+
     return clonedStableID
   }
 
   private tryMergeNode(toBeMergedID: number, redirectToID: number): boolean {
     if (toBeMergedID === redirectToID) return false
-    if (this.compareNode(toBeMergedID, redirectToID) !== 0) {
+    if (!this.isNodeEqual(toBeMergedID, redirectToID)) {
       return false
     }
 
     // redirecct in edges
-    let backItor = this.backLinks.findFirst((key)=>key[0]-toBeMergedID)
-    while(backItor?.key[0] === toBeMergedID) {
-      const ancestorID = backItor.key[1]
-      let edgeItor = this.edges.findFirst((key)=> key[0]-ancestorID)
-      const redirectBackItor = this.getBackLink(redirectToID, ancestorID, true)
-      while (edgeItor?.key[0] === ancestorID) {
-        if (edgeItor.value === toBeMergedID) {
-          edgeItor.value = redirectToID
+    let backlinkMap = this.getBackLinkMap(toBeMergedID)
+    for (const ancestorID of backlinkMap.keys()) {
+      const edgeMap = this.getEdgeMap(ancestorID)
+      for (const [char, other] of edgeMap.entries()) {
+        if (other === toBeMergedID) {
+          edgeMap.set(char, redirectToID)
+          this.addBackLink(redirectToID, ancestorID)
           this.decreaseIndegree(toBeMergedID)
           this.increaseIndegree(redirectToID)
-          redirectBackItor.value += 1
         }
-        edgeItor = edgeItor.next()
       }
-      backItor = backItor.remove()
+      backlinkMap.delete(ancestorID)
     }
 
     if (this.getIndegree(toBeMergedID) !== 0) {
@@ -331,22 +269,15 @@ export class TrieAutomaton {
     return true
   }
 
-  private tryMergeTail(stableIDs: number[]) {
-    let tail = this._end
+  private tryMergeAdd(stableIDs: number[], tail = this._end) {
     outter:
     for (let i = stableIDs.length - 1; i >= 0; --i) {
       const currentStableID = stableIDs[i]
+      if (currentStableID === this._root) break
 
-      // collect candidates first in case merging messed up iterator
-      let itor = this.backLinks.findFirst((key)=>key[0] - tail)
-      const candidates = []
-      while (itor?.key[0] === this._end) {
-        if (itor.key[1] !== currentStableID) {
-          candidates.push(itor.key[1])
-        }
-        itor = itor.next()
-      }
-      for (const candidate of candidates) {
+      const backlinkMap = this.getBackLinkMap(tail)
+
+      for (const candidate of backlinkMap.keys()) {
         const toBeMergedID = currentStableID < candidate ? candidate : currentStableID
         const redirectToID = currentStableID < candidate ? currentStableID : candidate
         if (this.tryMergeNode(toBeMergedID, redirectToID)) {
@@ -358,43 +289,85 @@ export class TrieAutomaton {
     }
   }
 
+  private tryMergeRemove(stableIDs: number[]) {
+    const last = stableIDs.at(-1)
+    if (!last || last === this._root) return
+
+    /* 
+      At first, we don't know which successor has backlink that is equal to current
+      So we loop every successor node of the last node in input
+      If any node mathches, we can stop this loop
+     */
+
+    const unequals = new Set()
+    const edgeMap = this.getEdgeMap(last)
+    let foundEqual = false
+    outter:
+    for (let tail of edgeMap.values()) {
+
+      middle:
+      for (let i = stableIDs.length - 1; i >= 0; --i) {
+        const currentStableID = stableIDs[i]
+        if (currentStableID === this._root) break
+        const backlinkMap = this.getBackLinkMap(tail)
+
+        for (const candidate of backlinkMap.keys()) {
+          if (!foundEqual && unequals.has(candidate)) {
+            continue
+          }
+          const toBeMergedID = currentStableID < candidate ? candidate : currentStableID
+          const redirectToID = currentStableID < candidate ? currentStableID : candidate
+          if (this.tryMergeNode(toBeMergedID, redirectToID)) {
+            tail = redirectToID
+            foundEqual = true
+            continue middle
+          } else if (!foundEqual) {
+            unequals.add(candidate)
+          }
+        }
+        break
+      }
+
+      if (foundEqual) {
+        break outter
+      }
+    }
+
+  }
+
   /**
    * edges related should be taken care in other methods.
    * @returns false if the parameter is not presented in states, true otherwise.
    */
   private deleteNode(toDeleteStableID: number, alsoEdges = true): boolean {
     if (toDeleteStableID >= this.internalSize) return false
-    if (this.getIndegree(toDeleteStableID) > 0) {
-      throw new Error('To delete node, you should remove all transitions to this node first')
-    }
 
     if (alsoEdges) {
       if (this.getIndegree(toDeleteStableID) > 0) {
         // delete in edges
-        let backItor = this.backLinks.findFirst((key)=>key[0]-toDeleteStableID)
-        while(backItor?.key[0] === toDeleteStableID) {
-          const ancestorID = backItor.key[1]
-          let edgeItor = this.edges.findFirst((key)=> key[0]-ancestorID)
-          while (edgeItor?.key[0] === ancestorID) {
-            if (edgeItor.value === toDeleteStableID) {
+        let backlinkMap = this.getBackLinkMap(toDeleteStableID)
+        for (const ancestorID of backlinkMap.keys()) {
+          const edgeMap = this.getEdgeMap(ancestorID)
+          for (const [char, other] of edgeMap.entries()) {
+            if (other === toDeleteStableID) {
+              edgeMap.delete(char)
               this.decreaseIndegree(toDeleteStableID)
-              edgeItor = edgeItor.remove()
-            } else {
-              edgeItor = edgeItor.next()
+              this.removeBackLink(toDeleteStableID, ancestorID)
             }
           }
-          backItor = backItor.remove()
+          backlinkMap.delete(ancestorID)
         }
+
         if (this.getIndegree(toDeleteStableID) !== 0) {
-          throw new Error("Indegree doesn't match after deletion, code is not correct.")
+          throw new Error("Indegree doesn't match after deletion, code is incorrect.")
         }
       }
       // remove edges and target backlinks
-      let edgeItor = this.edges.findFirst((key)=>key[0]-toDeleteStableID)
-      while (edgeItor?.key[0] === toDeleteStableID) {
-        this.removeBackLink(edgeItor.value, toDeleteStableID)
-        this.decreaseIndegree(edgeItor.value)
-        edgeItor = edgeItor.remove()
+      let edgeMap = this.getEdgeMap(toDeleteStableID)
+      for (const [char, other] of edgeMap.entries()) {
+        this.removeBackLink(other, toDeleteStableID)
+        this.decreaseIndegree(other)
+        edgeMap.delete(char)
       }
     }
 
@@ -402,18 +375,18 @@ export class TrieAutomaton {
     const tailStableID = this.internalToStable(tailInternalID)
     const toDeleteInternalID = this.stableToInternal(toDeleteStableID)
 
-    // this.setFinal(toDeleteStableID, this.getFinal(tailStableID))
     this.setIndegree(toDeleteStableID, this.getIndegree(tailStableID))
-    // this.finals.pop()
     this.indegrees.pop()
+    this.edgeMaps[toDeleteInternalID] = this.edgeMaps[tailInternalID]
+    this.edgeMaps.pop()
+    this.backLinks[toDeleteInternalID] = this.backLinks[tailInternalID]
+    this.backLinks.pop()
     this.internalSize -= 1
     
     this.backIndex[tailInternalID] = toDeleteStableID
     this.indirectIndex[tailStableID] = toDeleteInternalID
     this.backIndex[toDeleteInternalID] = tailStableID
     this.indirectIndex[toDeleteStableID] = tailInternalID
-
-    // assumes edges and backlinks are taken care in other methods
 
     return true
   }
@@ -450,6 +423,11 @@ export class TrieAutomaton {
       return
     }
     this.processedWords.add(word)
+
+    // follow transitions until indegree > 1
+    // then start cloning transitions until no such edge
+    // then create new nodes 
+    // merge last nodes upwards
     const nodesToMerge = [this._root]
     let newBranch = false
     for (let i = 0; i < word.length; i++) {
@@ -471,19 +449,51 @@ export class TrieAutomaton {
       nodesToMerge.push(next)
     }
     this.setTransition(nodesToMerge.at(-1)!, '', this._end)
-    this.tryMergeTail(nodesToMerge)
+    this.tryMergeAdd(nodesToMerge)
   }
-  // public removeWord(word: string) {
-  //   // fail fast check
-  //   if (!word) return
-  //   const processed = this.processedWords.has(word)
-  //   if (!processed) {
-  //     return
-  //   }
-  //   this.processedWords.delete(word)
+  public removeWord(word: string) {
+    // fail fast check
+    if (!word) return
+    const processed = this.processedWords.has(word)
+    if (!processed) {
+      return
+    }
+    this.processedWords.delete(word)
+    /*
+      Follow and clone are the same as adding a word,
+      except the transition should always exists.
+      Then, for the last node (final state), remove the edge to end node.
+      And check for deletion (nodes that have no path to the end node),
+      send the rest to check for merging.
+     */
+    const nodesToMerge = [this._root]
+    for (let i = 0; i < word.length; i++) {
+      const lastNode = nodesToMerge.at(-1)!
+      const edgeChar = word.charAt(i)
+      let next = this.getTransition(lastNode, edgeChar)
 
-    
-  // }
+      if (!next) {
+        throw new Error(`When removing existing word found no such transition: ${lastNode} "${edgeChar}"`)
+      }
+      
+      if (this.getIndegree(next) > 1) {
+        next = this.cloneNode(next)
+        this.setTransition(lastNode, edgeChar, next)
+      }
+      nodesToMerge.push(next)
+    }
+
+    this.setTransition(nodesToMerge.at(-1)!, '')
+    let lastNode = nodesToMerge.at(-1)
+    while (lastNode && lastNode !== this._root && this.getEdgeMap(lastNode).size === 0) {
+      this.deleteNode(lastNode)
+      nodesToMerge.pop()
+      lastNode = nodesToMerge.at(-1)
+    }
+    if (nodesToMerge.length > 1) {
+      this.tryMergeRemove(nodesToMerge)
+    }
+  }
   refill(words: string[]) {
     this.init()
     for (let i = 0; i < words.length; ++i ) {
