@@ -29,11 +29,11 @@ describe('SkipList', () => {
     sl.insert(1, 'one')
     sl.insert(2, 'two')
 
-    expect(sl.delete(1)).toBe(true)
+    expect(sl.delete(1)).toBe('one')
     expect(sl.search(1)).toBeUndefined()
     expect(sl.search(2)).toBe('two')
 
-    expect(sl.delete(3)).toBe(false)
+    expect(sl.delete(3)).toBe(undefined)
   })
 
   it('should handle deletion of all keys and shrink level', () => {
@@ -79,7 +79,7 @@ describe('SkipList', () => {
   it('should handle empty list operations', () => {
     const sl = new SkipList<number, string>(compareNumber)
     expect(sl.search(1)).toBeUndefined()
-    expect(sl.delete(1)).toBe(false)
+    expect(sl.delete(1)).toBe(undefined)
     
     let count = 0
     sl.forEach(() => count++)
@@ -88,12 +88,12 @@ describe('SkipList', () => {
 
   it('should find the first matching element using a custom comparator', () => {
     const sl = new SkipList<number, string>(compareNumber)
-    sl.insert(10, 'ten')
-    sl.insert(20, 'twenty-1')
-    sl.insert(20, 'twenty-2')
-    sl.insert(21, 'twenty-one')
-    sl.insert(22, 'twenty-two')
-    sl.insert(30, 'thirty')
+    sl.insert(10, '10')
+    sl.insert(20, '20-1')
+    sl.insert(20, '20-2')
+    sl.insert(21, '21')
+    sl.insert(22, '22')
+    sl.insert(30, '30')
 
     // Find the first key that is >= 20
     const it = sl.findFirst((k) => {
@@ -104,15 +104,59 @@ describe('SkipList', () => {
 
     expect(it).toBeDefined()
     expect(it?.key).toBe(20)
-    expect(it?.value).toBe('twenty-2') // The last one inserted for key 20
+    expect(it?.value).toBe('20-2') // The last one inserted for key 20
 
     // Test iteration from there
     const next = it?.next()
     expect(next?.key).toBe(21)
-    expect(next?.value).toBe('twenty-one')
+    expect(next?.value).toBe('21')
     
     const next2 = next?.next()
     expect(next2?.key).toBe(22)
+
+  })
+
+  it('iterator functions', () => {
+
+    const sl = new SkipList<number, string>(compareNumber)
+    sl.insert(10, '10')
+    sl.insert(20, '20-1')
+    sl.insert(20, '20-2')
+    sl.insert(21, '21')
+    sl.insert(22, '22')
+    sl.insert(30, '30')
+
+    // edge case
+    const head = sl.findFirst((k) => {
+      return k-10
+    })
+    expect(head).toBeDefined()
+    expect(head?.key).toBe(10)
+    expect(head?.value).toBe('10')
+    const tail = sl.findFirst((k) => {
+      return k-30
+    })
+    expect(tail).toBeDefined()
+    expect(tail?.key).toBe(30)
+    expect(tail?.value).toBe('30')
+    const nil = sl.findFirst((k) => {
+      return k-25
+    })
+    expect(nil).toBeUndefined()
+    const nilhead = sl.findFirst((k) => {
+      return k-0
+    })
+    expect(nilhead).toBeUndefined()
+
+    // test Iterator remove
+    const itor = sl.findFirst((k) => {
+      return k-21
+    })
+    itor?.remove()
+    const otherItor = sl.findFirst((k)=>{
+      return k-20
+    })
+    expect(otherItor?.next()?.key).toBe(22)
   })
 
   it('should return the leftmost item when multiple items satisfy the condition', () => {
