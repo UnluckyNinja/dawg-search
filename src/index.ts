@@ -1,9 +1,9 @@
 import { SuffixAutomaton } from './suffix'
-import { TrieAutomaton, type TrieNode } from './trie'
+import { TrieAutomaton } from './trieWithMap'
 import { nodeGetNext } from './utils'
 
 export * from './suffix'
-export * from './trie'
+export * from './trieWithMap'
 export * from './utils'
 
 interface Result {
@@ -19,7 +19,7 @@ export function prepareSearch(words: string[]) {
   return {
     findWords: _findWords,
     addWord: trie.addWord,
-    removeWord: trie.removeWord,
+    // removeWord: trie.removeWord,
     refill: trie.refill,
   }
 }
@@ -28,7 +28,7 @@ export async function prepareSearchAsync(words: string[]) {
   const trie = new TrieAutomaton()
   let timeStart = performance.now()
   for (const word of words) {
-    if (performance.now() - timeStart > 10) {
+    if (performance.now() - timeStart > 15) {
       await new Promise((resolve)=>setTimeout(resolve, 0))
       timeStart = performance.now()
     }
@@ -40,7 +40,7 @@ export async function prepareSearchAsync(words: string[]) {
   return {
     findWords: _findWords,
     addWord: trie.addWord,
-    removeWord: trie.removeWord,
+    // removeWord: trie.removeWord,
     refill: trie.refill,
   }
 }
@@ -55,7 +55,7 @@ export function findWords(text: string, trie: TrieAutomaton) {
     matchingLength: 0,
     final: false,
     samNode: sam.root,
-    trieNode: trie.root as TrieNode | null,
+    trieNode: trie.root as number | null,
   }]
 
   function pushToQueue(oldState: typeof queue[number], options: Record<string, any> = {}) {
@@ -89,7 +89,7 @@ export function findWords(text: string, trie: TrieAutomaton) {
       }
     }
     // if no need to check next (already mismatched), just propagate
-    if (!state.trieNode) {
+    if (state.trieNode === null) {
       for (const [_, nextSAM] of state.samNode.out) {
         pushToQueue(state, {
           nextSAM,
@@ -100,7 +100,7 @@ export function findWords(text: string, trie: TrieAutomaton) {
 
     // else check
     for (const [char, nextSAM] of state.samNode.out) {
-      const nextTrie = nodeGetNext(state.trieNode, char)
+      const nextTrie = trie.getTransition(state.trieNode, char)
       if (!nextTrie) { // mismatch
         if (state.matchedLength === 0) {
           continue // no matched word and mismatched, just drop
@@ -111,7 +111,7 @@ export function findWords(text: string, trie: TrieAutomaton) {
         })
         continue
       }
-      if (nextTrie.final) {
+      if (trie.isFinal(nextTrie)) {
         pushToQueue(state, {
           matched: true,
           nextTrie,

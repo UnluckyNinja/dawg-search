@@ -31,6 +31,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
+    "@codspeed/vitest-plugin": "^5.2.0",
     "@types/node": "^25.2.0",
     "bumpp": "^10.4.1",
     "tsdown": "^0.20.3",

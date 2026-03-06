@@ -16,7 +16,11 @@ export interface SkipListIterator<K, V> {
   value: V
   next(): SkipListIterator<K, V> | undefined
   previous(): SkipListIterator<K, V> | undefined
+  /**
+   * After removal, points to next node if any
+   */
   remove(): SkipListIterator<K, V> | undefined
+  clone(): SkipListIterator<K, V>
 }
 
 class SkipListIteratorImpl<K, V> implements SkipListIterator<K, V> {
@@ -56,6 +60,9 @@ class SkipListIteratorImpl<K, V> implements SkipListIterator<K, V> {
       return this
     }
     return undefined
+  }
+  clone() {
+    return new SkipListIteratorImpl(this.node, this.head)
   }
 }
 
@@ -133,10 +140,8 @@ export class SkipList<K, V> {
 
   /**
    * Inserts or updates a key-value pair.
-   * @returns true, if there is an existing value
-   * @returns false, if there isn't
    */
-  insert(key: K, value: V): boolean {
+  insert(key: K, value: V): SkipListIterator<K, V> {
     const update = new Array<SkipNode<K, V>>(this.maxLevel).fill(this.head)
     let curr: SkipNode<K,V> = this.head
 
@@ -153,7 +158,7 @@ export class SkipList<K, V> {
     // If key exists, update value
     if (target && target.key !== null && this.compare(target.key as K, key) === 0) {
       target.value = value
-      return true
+      return new SkipListIteratorImpl(target, this.head)
     }
 
     // Otherwise, create a new node with a random level
@@ -182,7 +187,7 @@ export class SkipList<K, V> {
       newNode.previous[i] = update[i]
     }
 
-    return false
+    return new SkipListIteratorImpl(newNode, this.head)
   }
 
   /**
